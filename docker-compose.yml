@@ -1,0 +1,74 @@
+
+version: "3"
+
+services:
+  proxy:
+    image: traefik
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - ./proxy/traefik.toml:/etc/traefik/traefik.toml
+      - ./ssl:/etc/certs
+      - /var/run/docker.sock:/var/run/docker.sock
+#    command: -c /traefik.toml --logLevel=DEBUG
+    networks:
+      - recyclus-network
+    restart: on-failure
+
+
+  traefik-forward-auth:
+    image: thomseddon/traefik-forward-auth:v2.0.0-rc3
+    environment:
+      - LOG_LEVEL=INFO
+    env_file:
+      - secrets/oauth-forward.env
+    networks:
+      - recyclus-network
+
+  whoami:
+    image: emilevauge/whoami:latest
+    networks:
+      - recyclus-network
+    labels:
+      - "traefik.backend=whoami"
+      - "traefik.enable=true"
+      - "traefik.frontend.rule=PathPrefixStrip:/whoami"
+
+  hub:
+    build:
+      context: jupyterhub
+      dockerfile: Dockerfile
+      args:
+        JUPYTERHUB_VERSION: ${JUPYTERHUB_VERSION}
+    restart: always
+    image: recyclus_hub
+#    container_name: jupyterhub
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:rw"
+      - "data:/data"
+    networks:
+      - recyclus-network
+    environment:
+#      DOCKER_NETWORK_NAME: ${DOCKER_NETWORK_NAME}
+      DOCKER_NETWORK_NAME: "recyclus_deploy_recyclus-network"
+      DOCKER_NOTEBOOK_IMAGE: ${LOCAL_NOTEBOOK_IMAGE}
+      DOCKER_NOTEBOOK_DIR: ${DOCKER_NOTEBOOK_DIR}
+      DOCKER_SPAWN_CMD: ${DOCKER_SPAWN_CMD}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.frontend.rule=Host:view.sci.utah.edu"
+
+
+volumes:
+  data:
+    external:
+      name: ${HUB_DATA_VOLUME}
+
+networks:
+  recyclus-network:
+##  default:
+#    external:
+#      name: ${DOCKER_NETWORK_NAME}
+

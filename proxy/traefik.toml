@@ -1,0 +1,38 @@
+#debug = true
+
+logLevel = "ERROR"
+defaultEntryPoints = ["https","http"]
+
+[entryPoints]
+  [entryPoints.http]
+  address = ":80"
+    [entryPoints.http.redirect]
+    entryPoint = "https"
+
+  [entryPoints.https]
+  address = ":443"
+    [entryPoints.https.tls]
+      [[entryPoints.https.tls.certificates]]
+      certFile = "/etc/certs/hostcert.crt"
+      keyFile = "/etc/certs/hostcert.key"
+
+	  [entryPoints.https.auth.forward]
+	  address = "http://traefik-forward-auth:4181"
+	  authResponseHeaders = ["X-Forwarded-User"]
+
+[docker]
+#domain = "docker.local"
+watch = true
+exposedByDefault = false
+
+swarmMode = false
+# Polling interval (in seconds) for Swarm Mode.
+#
+# Optional
+# Default: 15
+#
+swarmModeRefreshSeconds = 15
+
+[api]
+  [api.statistics]
+    recentErrors = 10
